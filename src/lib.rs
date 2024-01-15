@@ -561,7 +561,11 @@ impl Contract {
     // }
 
     pub fn get_account_deposits(&self, account_id: AccountId) -> HashMap<TokenId, Deposit> {
-        self.deposits.get(&account_id).unwrap().clone()
+        if let Some(deposit) = self.deposits.get(&account_id) {
+            deposit.clone()
+        } else {
+            HashMap::new()
+        }
     }
 
     // #[payable]

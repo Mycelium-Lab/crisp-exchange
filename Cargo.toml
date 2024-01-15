@@ -12,8 +12,8 @@ near-sdk = "3.1.0"
 serde = "0.9.0-rc2"
 near-contract-standards = "3.1.0"
 
-[dev-dependencies]
-near-sdk-sim = "3.1.0"
+[patch.crates-io]
+parity-secp256k1 = { git = 'https://github.com/paritytech/rust-secp256k1.git' }
 
 [profile.release]
 codegen-units = 1
