@@ -5,12 +5,12 @@ use near_sdk::{
     AccountId,
 };
 
-use crate::{errors::*};
+use crate::errors::*;
 
 #[derive(Clone, Serialize, BorshDeserialize, BorshSerialize, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Position {
-    pub owner_id: AccountId,
+    pub owner_id: AccountId, // position owner account
     pub liquidity: f64,     // L
     pub token0_locked: f64, // x
     pub token1_locked: f64, // y
@@ -69,7 +69,7 @@ impl Position {
         let tick_upper_bound_price = sqrt_price_to_tick(upper_bound_price.sqrt());
         let sqrt_lower_bound_price = tick_to_sqrt_price(tick_lower_bound_price);
         let sqrt_upper_bound_price = tick_to_sqrt_price(tick_upper_bound_price);
-        if token0_liquidity.is_some() {
+        if token0_liquidity.is_some() { 
             let token0_liquidity: u128 = token0_liquidity.unwrap().into();
             x = token0_liquidity as f64;
             assert!(x > 0.0, "{}", PST1);
@@ -146,7 +146,7 @@ impl Position {
         self.sqrt_lower_bound_price <= sqrt_price && self.sqrt_upper_bound_price >= sqrt_price
     }
 
-    pub fn add_liquidity(
+    pub fn add_liquidity( // there are two tests of this function in pool.rs
         &mut self,
         token0_liquidity: Option<U128>,
         token1_liquidity: Option<U128>,
@@ -361,7 +361,7 @@ pub fn _calculate_sp(l: f64, x: f64, sb: f64) -> f64 {
 mod test {
     use super::min;
     use crate::position::max;
-    use crate::position::*;
+    use crate::{position::*, LTV_MAX};
 
     #[test]
     fn debug_info() {
@@ -571,6 +571,67 @@ mod test {
         let _position = Position::new(String::new(), None, Some(U128(1)), 121.0, 144.0, 10.0);
     }
 
+    #[test] 
+    fn open_position_0() {
+        let position = Position::new(
+            String::new(),
+            None,
+            Some(U128(50)),
+            121.0,
+            169.0,
+            12.0,
+        );
+        let delta = 0.01;
+        let token0_locked_calc = 0.3205128205;
+        let liquidity_calc = 50.0;
+        let sqrt_lower_bound_price_calc = 11.0;
+        let sqrt_upper_bound_price_calc = 13.0;
+
+        println!("liquidity = {}", position.liquidity);
+        println!("token0_locked = {}", position.token0_locked);
+        println!("token1_locked = {}", position.token1_locked);
+        println!("sqrt_lower_bound_price = {}", position.sqrt_lower_bound_price);
+        println!("sqrt_upper_bound_price = {}", position.sqrt_upper_bound_price);
+
+        assert!(max(position.token0_locked, token0_locked_calc)-min(position.token0_locked, token0_locked_calc) < delta);
+        assert!(position.token1_locked == 50.0);
+
+        assert!(max(position.liquidity, liquidity_calc)-min(position.liquidity, liquidity_calc) < delta);
+        assert!(max(position.sqrt_lower_bound_price, sqrt_lower_bound_price_calc)-min(position.sqrt_lower_bound_price, sqrt_lower_bound_price_calc) < delta);
+        assert!(max(position.sqrt_upper_bound_price, sqrt_upper_bound_price_calc)-min(position.sqrt_upper_bound_price, sqrt_upper_bound_price_calc) < delta);
+    }
+
+    #[test] 
+    fn open_position_0_0() {
+        let position = Position::new(
+            String::new(),
+            None,
+            Some(U128(50)),
+            1.0,
+            1000.0,
+            20.0,
+        );
+        let delta = 0.01;
+        let token0_locked_calc = 0.04836;
+        let liquidity_calc = 2.631579;
+        let sqrt_lower_bound_price_calc = 1.0;
+        let sqrt_upper_bound_price_calc = 31.622777;
+
+        println!("liquidity = {}", position.liquidity);
+        println!("token0_locked = {}", position.token0_locked);
+        println!("token1_locked = {}", position.token1_locked);
+        println!("sqrt_lower_bound_price = {}", position.sqrt_lower_bound_price);
+        println!("sqrt_upper_bound_price = {}", position.sqrt_upper_bound_price);
+
+        assert!(max(position.token0_locked, token0_locked_calc)-min(position.token0_locked, token0_locked_calc) < delta);
+        assert!(position.token1_locked == 50.0);
+
+        assert!(max(position.liquidity, liquidity_calc)-min(position.liquidity, liquidity_calc) < delta);
+        assert!(max(position.sqrt_lower_bound_price, sqrt_lower_bound_price_calc)-min(position.sqrt_lower_bound_price, sqrt_lower_bound_price_calc) < delta);
+        assert!(max(position.sqrt_upper_bound_price, sqrt_upper_bound_price_calc)-min(position.sqrt_upper_bound_price, sqrt_upper_bound_price_calc) < delta);
+    }
+
+
     #[test]
     fn open_position1() {
         let position = Position::new(
@@ -641,29 +702,35 @@ mod test {
         assert!(new_tick > tick)
     }
 
-    #[test]
+    #[test] 
     fn liquidation_prices1() {
         let position = Position::new(String::new(), None, Some(U128(50)), 121.0, 169.0, 12.0);
-        let prices = position.get_liquidation_price(position.token0_locked, position.token1_locked);
+        let prices = position.get_liquidation_price(position.token0_locked, position.token1_locked, LTV_MAX);
         println!("prices are {} {}", prices.0, prices.1);
-        assert_eq!(prices.0.round(), 132.0);
-        assert_eq!(prices.1.round(), 156.0);
+        assert_eq!(prices.0.round(), 209.0);
+        assert_eq!(prices.1.round(), 94.0);
     }
 
-    #[test]
+    #[test] 
     fn liquidation_prices2() {
         let position = Position::new(String::new(), None, Some(U128(50)), 1.0, 1000.0, 20.0);
-        let prices = position.get_liquidation_price(position.token0_locked, position.token1_locked);
+        let prices = position.get_liquidation_price(position.token0_locked, position.token1_locked, LTV_MAX);
         println!("prices are {} {}", prices.0, prices.1);
-        assert_eq!(prices.0.round(), 20.0);
-        assert_eq!(prices.1.round(), 632.0);
+        assert_eq!(prices.0.round(), 25.0);
+        assert_eq!(prices.1.round(), 299.0);
     }
 
     #[should_panic]
-    #[test]
+    #[test] 
     fn liquidation_prices3() {
         let position = Position::new(String::new(), None, Some(U128(50)), 121.0, 144.0, 13.0);
-        let prices = position.get_liquidation_price(position.token0_locked, position.token1_locked);
+        let prices = position.get_liquidation_price(position.token0_locked, position.token1_locked, LTV_MAX);
         println!("prices are {} {}", prices.0, prices.1);
+    }
+
+    #[should_panic]
+    #[test] 
+    fn add_liquidity_both_tokens() {
+        let position = Position::new(String::new(), Some(U128(10)), Some(U128(50)), 121.0, 169.0, 12.0);
     }
 }

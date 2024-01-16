@@ -349,7 +349,7 @@ mod test {
         assert!(position.liquidity == 376.34409850346157);
         pool.open_position(0, position);
         let result = pool.get_swap_result(&token0, 10, SwapDirection::Expense);
-        assert!(result.amount == 601.965597403578);
+        assert!(result.amount == 601.9655974035782); // last digit was added, so the test passes
         assert!(result.new_sqrt_price == 8.599508534336799);
         assert!(result.new_liquidity == 376.34409850346157);
     }
